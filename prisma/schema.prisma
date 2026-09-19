@@ -1,0 +1,139 @@
+// Prisma schema for VitaPhiles
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  username     String        @unique
+  passwordHash String
+  name         String
+  avatar       String?
+  bio          String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  tasteProfile TasteProfile?
+  libraries    UserLibrary[]
+  ratings      Rating[]
+  reviews      Review[]
+  lists        PersonalList[]
+}
+
+model TasteProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteMovieGenres String   @default("[\"Science Fiction\",\"Drama\"]")
+  favoriteBookGenres  String   @default("[\"Science Fiction\",\"Philosophy\"]")
+  favoriteCreators    String   @default("[\"Christopher Nolan\",\"Frank Herbert\"]")
+  preferences         String   @default("{\"classics\":false,\"hiddenGems\":true,\"slowBurn\":true,\"longForm\":true,\"fiction\":true}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model MediaItem {
+  id               String         @id @default(uuid())
+  kind             String         // "movie" | "book"
+  externalId       String?        // TMDB ID, Google Books volume ID, Open Library key, or local ID
+  provider         String         // "local" | "tmdb" | "google-books" | "open-library"
+  title            String
+  creator          String         // author or director
+  year             Int?
+  description      String
+  image            String?
+  genres           String         // JSON array of genre strings
+  mood             String         // JSON array of mood strings
+  averageRating    Float?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  libraries        UserLibrary[]
+  ratings          Rating[]
+  reviews          Review[]
+  listItems        ListItem[]
+  bookAdaptations  Adaptation[]   @relation("BookAdaptations")
+  movieAdaptations Adaptation[]   @relation("MovieAdaptations")
+
+  @@unique([kind, externalId])
+}
+
+model UserLibrary {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItemId String
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  status      String    // "want_to_read" | "currently_reading" | "read" | "watchlist" | "watched"
+  progress    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, mediaItemId])
+}
+
+model Rating {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItemId String
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  score       Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, mediaItemId])
+}
+
+model Review {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItemId String
+  mediaItem   MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  content     String
+  rating      Float?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model PersonalList {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  isPublic    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       ListItem[]
+}
+
+model ListItem {
+  id          String       @id @default(uuid())
+  listId      String
+  list        PersonalList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  mediaItemId String
+  mediaItem   MediaItem    @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  note        String?
+  addedAt     DateTime     @default(now())
+
+  @@unique([listId, mediaItemId])
+}
+
+model Adaptation {
+  id      String    @id @default(uuid())
+  bookId  String
+  book    MediaItem @relation("BookAdaptations", fields: [bookId], references: [id], onDelete: Cascade)
+  movieId String
+  movie   MediaItem @relation("MovieAdaptations", fields: [movieId], references: [id], onDelete: Cascade)
+  title   String    @default("Book Adaptation")
+  notes   String?
+
+  @@unique([bookId, movieId])
+}
